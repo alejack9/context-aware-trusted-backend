@@ -3,6 +3,10 @@ import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 
 export class TrustedPrivacyParameters {
   @ApiProperty()
+  reqId: string;
+  @ApiProperty()
+  reqNr: number;
+  @ApiProperty()
   alpha: boolean;
   @ApiProperty()
   cloaking: boolean;
@@ -15,7 +19,11 @@ export class TrustedPrivacyParameters {
   @ApiPropertyOptional()
   cloakingTimeout?: number;
   @ApiPropertyOptional()
-  cloakingRadius?: number;
+  cloakingK?: number;
+  @ApiPropertyOptional()
+  cloakingSizeX?: number;
+  @ApiPropertyOptional()
+  cloakingSizeY?: number;
   @ApiPropertyOptional()
   dummyUpdatesCount?: number;
   @ApiPropertyOptional()
@@ -28,10 +36,14 @@ export class TrustedPrivacyParameters {
 
 function fromQuery(query: any): TrustedPrivacyParameters {
   return {
+    reqId: query.reqId,
+    reqNr: query.reqNr,
     alpha: /true/i.test(query.alpha),
     alphaValue: Number(query.alphaValue),
     cloaking: /true/i.test(query.cloaking),
-    cloakingRadius: Number(query.cloakingRadius),
+    cloakingK: Number(query.cloakingSizeK),
+    cloakingSizeX: Number(query.cloakingSizeX),
+    cloakingSizeY: Number(query.cloakingSizeY),
     cloakingTimeout: Number(query.cloakingTimeout),
     dummyLocation: /true/i.test(query.dummyLocation),
     dummyUpdatesCount: Number(query.dummyUpdatesCount),

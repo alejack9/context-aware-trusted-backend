@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Feature, FeatureCollection, Point, Position } from 'geojson';
+import { Feature, FeatureCollection, Point, Polygon, Position } from 'geojson';
 import { product } from 'cartesian-product-generator';
 import {
   BackendGeoJsonProperties,
@@ -8,10 +8,17 @@ import {
 import { TrustedGeojsonProperties } from 'src/dtos/trusted-geojson-properties';
 import { to3857, to4326 } from 'src/utils/coordinates';
 import { randomInt, countDecimals, randomDouble, round } from 'src/utils/math';
+import { makeMessage } from './cloaking-engine/message';
+import { CloakingEngineService } from './cloaking-engine/cloaking-engine.service';
+import { MBR } from './cloaking-engine/mbr';
 
 @Injectable()
 export class PrivacyService {
   private logger = new Logger('CoordinatesService');
+
+  constructor(private engineService: CloakingEngineService) {
+    // this.engineService.start();
+  }
 
   /**
    * @param coords in EPSG:4326
@@ -57,15 +64,6 @@ export class PrivacyService {
     });
   }
 
-  async applyCloaking(
-    coords: Position,
-    cloakingRadius: number,
-    cloakingTimeout: number,
-  ): Promise<number[]> {
-    // TODO CLOAKING
-    throw new Error('applyCloaking not implemented.');
-  }
-
   async fromAlpha(
     feature: Feature<Point, TrustedGeojsonProperties>,
   ): Promise<Feature<Point, BackendGeoJsonProperties>[]> {
@@ -75,12 +73,17 @@ export class PrivacyService {
 
   async fromFeature(
     realFeature: Feature<Point, TrustedGeojsonProperties>,
-  ): Promise<Feature<Point, BackendGeoJsonProperties>[]> {
+  ): Promise<Feature<Point | Polygon, BackendGeoJsonProperties>[]> {
     if (realFeature.properties.alpha) return await this.fromAlpha(realFeature);
 
-    const toRet = [];
+    const toRet: Feature<Point | Polygon, BackendGeoJsonProperties>[] = [];
+
     for (const _ of [
-      ...Array((realFeature.properties.dummyUpdatesCount ?? 1) - 1).keys(), // do at least 1 time
+      ...Array(
+        (realFeature.properties.dummyLocation
+          ? realFeature.properties.dummyUpdatesCount
+          : 2) - 1,
+      ).keys(),
     ]) {
       let coords = realFeature.geometry.coordinates;
       if (realFeature.properties.gpsPerturbated)
@@ -94,12 +97,6 @@ export class PrivacyService {
           realFeature.properties.dummyUpdatesRadiusMin,
           realFeature.properties.dummyUpdatesRadiusStep,
         );
-      if (realFeature.properties.cloaking)
-        coords = await this.applyCloaking(
-          coords,
-          realFeature.properties.cloakingRadius,
-          realFeature.properties.cloakingTimeout,
-        );
 
       toRet.push(
         createFeature(
@@ -109,6 +106,7 @@ export class PrivacyService {
           {
             dummyLocation: realFeature.properties.dummyLocation,
             gpsPerturbated: realFeature.properties.gpsPerturbated,
+            cloaking: realFeature.properties.cloaking,
             dummyUpdatesRadiusMin: realFeature.properties.dummyUpdatesRadiusMin,
             dummyUpdatesRadiusStep:
               realFeature.properties.dummyUpdatesRadiusStep,
@@ -117,60 +115,80 @@ export class PrivacyService {
         ),
       );
     }
-    return toRet;
 
-    // if (realFeature.properties.dummyLocation) {
-    //   // dummy
-    //   for (const _ of [
-    //     Array(realFeature.properties.dummyUpdatesCount - 1).keys(),
-    //   ]) {
-    //     const feat = createFeature(
-    //       this.dummyPositionMetersMakerFromCoord(
-    //         realFeature.geometry.coordinates,
-    //         realFeature.properties.dummyUpdatesRadiusMin,
-    //         realFeature.properties.dummyUpdatesRadiusStep,
-    //       ),
-    //       realFeature.properties.noiseLevel,
-    //       realFeature.properties.timeStamp,
-    //       {
-    //         dummyLocation: realFeature.properties.dummyLocation,
-    //         dummyUpdatesRadiusMin: realFeature.properties.dummyUpdatesRadiusMin,
-    //         dummyUpdatesRadiusStep:
-    //           realFeature.properties.dummyUpdatesRadiusStep,
-    //         gpsPerturbated: realFeature.properties.gpsPerturbated,
-    //         perturbatorDecimals: realFeature.properties.perturbatorDecimals,
-    //       },
-    //     );
-    //     if (realFeature.properties.gpsPerturbated)
-    //       // dummy and pert
-    //       feat.geometry.coordinates = this.perturbateCoords(
-    //         feat.geometry.coordinates,
-    //         realFeature.properties.perturbatorDecimals,
-    //       );
-    //     toRet.push(feat);
-    //   }
-    // } else if (realFeature.properties.gpsPerturbated)
-    //   // pert
-    //   toRet.push(
-    //     createFeature(
-    //       this.perturbateCoords(
-    //         realFeature.geometry.coordinates,
-    //         realFeature.properties.perturbatorDecimals,
-    //       ),
-    //       realFeature.properties.noiseLevel,
-    //       realFeature.properties.timeStamp,
-    //       {
-    //         dummyLocation: realFeature.properties.dummyLocation,
-    //         dummyUpdatesRadiusMin: realFeature.properties.dummyUpdatesRadiusMin,
-    //         dummyUpdatesRadiusStep:
-    //           realFeature.properties.dummyUpdatesRadiusStep,
-    //         gpsPerturbated: realFeature.properties.gpsPerturbated,
-    //         perturbatorDecimals: realFeature.properties.perturbatorDecimals,
-    //       },
-    //     ),
-    //   );
+    if (!realFeature.properties.cloaking)
+      return [
+        ...toRet,
+        createFeature(
+          realFeature.geometry.coordinates,
+          realFeature.properties.noiseLevel,
+          realFeature.properties.timeStamp,
+          {
+            dummyLocation: false,
+            gpsPerturbated: false,
+            cloaking: false,
+          },
+        ),
+      ];
 
-    // return toRet;
+    return new Promise((res) => {
+      const messages = [...toRet] as Feature<Point, BackendGeoJsonProperties>[];
+      toRet.splice(0, toRet.length);
+      let done = 0;
+      const cbCalled = () => {
+        if (++done === messages.length) res(toRet);
+      };
+      const success = (rect: { mbr: MBR; m: BackendGeoJsonProperties }) => {
+        toRet.push({
+          type: 'Feature',
+          properties: rect.m,
+          geometry: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [rect.mbr.min.x, rect.mbr.min.y],
+                [rect.mbr.max.x, rect.mbr.min.y],
+                [rect.mbr.max.x, rect.mbr.max.y],
+                [rect.mbr.min.x, rect.mbr.max.y],
+                [rect.mbr.min.x, rect.mbr.min.y],
+              ],
+            ],
+          },
+        });
+        cbCalled();
+      };
+      const fail = cbCalled;
+
+      for (const [i, msg] of messages.entries()) {
+        this.engineService.newMessage(
+          makeMessage(
+            realFeature.properties.reqId,
+            realFeature.properties.reqNr + i,
+            realFeature.properties.timeStamp,
+            msg.geometry.coordinates[0],
+            msg.geometry.coordinates[1],
+            realFeature.properties.cloakingK,
+            realFeature.properties.cloakingTimeout,
+            realFeature.properties.cloakingSizeX,
+            realFeature.properties.cloakingSizeY,
+            {
+              dummyLocation: realFeature.properties.dummyLocation,
+              gpsPerturbated: realFeature.properties.gpsPerturbated,
+              cloaking: realFeature.properties.cloaking,
+              noiseLevel: realFeature.properties.noiseLevel,
+              timeStamp: realFeature.properties.timeStamp,
+              dummyUpdatesRadiusMin:
+                realFeature.properties.dummyUpdatesRadiusMin,
+              dummyUpdatesRadiusStep:
+                realFeature.properties.dummyUpdatesRadiusStep,
+              perturbatorDecimals: realFeature.properties.perturbatorDecimals,
+            },
+            success,
+            fail,
+          ),
+        );
+      }
+    });
   }
 
   allMetrics(
@@ -195,6 +213,7 @@ export class PrivacyService {
           {
             dummyLocation: false,
             gpsPerturbated: true,
+            cloaking: false,
             perturbatorDecimals: pert,
           },
         ),
@@ -219,6 +238,7 @@ export class PrivacyService {
           {
             dummyLocation: true,
             gpsPerturbated: false,
+            cloaking: false,
             dummyUpdatesRadiusMin: min,
             dummyUpdatesRadiusStep: range,
           },
@@ -247,6 +267,7 @@ export class PrivacyService {
           {
             dummyLocation: true,
             gpsPerturbated: true,
+            cloaking: false,
             dummyUpdatesRadiusMin: min,
             dummyUpdatesRadiusStep: range,
             perturbatorDecimals: pert,
@@ -264,6 +285,7 @@ export class PrivacyService {
         {
           dummyLocation: false,
           gpsPerturbated: false,
+          cloaking: false,
         },
       ),
     );

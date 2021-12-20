@@ -8,18 +8,19 @@ import {
   Query,
 } from '@nestjs/common';
 import { FeatureCollection, Point } from 'geojson';
-import { createFeature } from 'src/dtos/backend-geojson-properties';
 import {
   BackendPrivacyOptions,
   BackendPrivacyParameters,
 } from 'src/dtos/backend-privacy-parameters';
+import { v4 as uuid4 } from 'uuid';
 import { TrustedGeojsonProperties } from 'src/dtos/trusted-geojson-properties';
-import { PrivacyService } from './privacy.service';
+import { PrivacyService } from '../../utils/privacy/privacy.service';
 import { TrustedService } from './trusted.service';
 
 @Controller()
 export class TrustedController {
   private logger = new Logger('TrustedController');
+
   constructor(
     private trustedService: TrustedService,
     private privacyService: PrivacyService,
@@ -34,29 +35,24 @@ export class TrustedController {
     return await this.trustedService.getAverageNoise(lat, long, privacyOptions);
   }
 
+  @Get('id')
+  getNewId() {
+    return uuid4();
+  }
+
   @Post()
   async insert(
     @Body()
     featColl: FeatureCollection<Point, TrustedGeojsonProperties>,
   ) {
     await Promise.all(
-      featColl.features.map(async (realFeature) =>
-        this.trustedService.sendFeatureCollection({
+      featColl.features.map(async (realFeature) => {
+        const toSend = await this.privacyService.fromFeature(realFeature);
+        return this.trustedService.sendFeatureCollection({
           type: 'FeatureCollection',
-          features: [
-            ...(await this.privacyService.fromFeature(realFeature)),
-            createFeature(
-              realFeature.geometry.coordinates,
-              realFeature.properties.noiseLevel,
-              realFeature.properties.timeStamp,
-              {
-                dummyLocation: false,
-                gpsPerturbated: false,
-              },
-            ),
-          ],
-        }),
-      ),
+          features: toSend,
+        });
+      }),
     );
   }
 }

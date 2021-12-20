@@ -1,14 +1,13 @@
 import { HttpModule } from '@nestjs/axios';
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
 import { AllMetricsController } from './all-metrics/all-metrics.controller';
-import { PrivacyService } from './privacy.service';
 import { TrustedController } from './trusted.controller';
 import { TrustedService } from './trusted.service';
+import { PrivacyModule } from 'src/utils/privacy/privacy.module';
 
 @Module({
-  imports: [HttpModule, ConfigModule],
+  imports: [HttpModule, PrivacyModule],
   controllers: [TrustedController, AllMetricsController],
-  providers: [TrustedService, PrivacyService],
+  providers: [TrustedService],
 })
 export class TrustedModule {}

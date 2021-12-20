@@ -24,6 +24,7 @@ export function createFeature(
     properties: {
       dummyLocation: params.dummyLocation,
       gpsPerturbated: params.gpsPerturbated,
+      cloaking: params.cloaking,
       noiseLevel: noiseLevel,
       timeStamp: timeStamp,
       dummyUpdatesRadiusMin: params.dummyUpdatesRadiusMin,

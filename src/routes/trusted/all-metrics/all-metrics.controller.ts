@@ -1,7 +1,7 @@
 import { Body, Controller, Logger, Post } from '@nestjs/common';
 import { FeatureCollection, Point } from 'geojson';
 import { TrustedGeojsonProperties } from 'src/dtos/trusted-geojson-properties';
-import { PrivacyService } from '../privacy.service';
+import { PrivacyService } from '../../../utils/privacy/privacy.service';
 import { TrustedService } from '../trusted.service';
 import {
   dummyUpdatesCount,

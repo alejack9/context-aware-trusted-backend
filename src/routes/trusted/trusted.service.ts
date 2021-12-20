@@ -1,13 +1,12 @@
 import { waitFor } from 'src/utils/wait-for';
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
-import { FeatureCollection, Point } from 'geojson';
+import { FeatureCollection, Point, Polygon } from 'geojson';
 import { BackendGeoJsonProperties } from 'src/dtos/backend-geojson-properties';
 import {
   BackendPrivacyParameters,
   toQueryString,
 } from 'src/dtos/backend-privacy-parameters';
-import { writeFileSync } from 'fs';
 
 @Injectable()
 export class TrustedService {
@@ -19,7 +18,6 @@ export class TrustedService {
     long: number,
     privacyOptions: BackendPrivacyParameters,
   ) {
-    this.logger.log(process.env.UNTRUSTED_BACKEND);
     return (
       await this.http
         .get(
@@ -31,26 +29,12 @@ export class TrustedService {
     ).data;
   }
 
-  saveAsFile(
-    featureCollection: FeatureCollection<Point, BackendGeoJsonProperties>,
-  ) {
-    const name = new Date().getTime().toString();
-    this.logger.log(
-      `Feature Collection features count: ${featureCollection.features.length}`,
-    );
-    this.logger.log(`Saving to ${name}.json`);
-    writeFileSync(
-      `${name}.json`,
-      JSON.stringify(featureCollection, null, '\t'),
-    );
-    this.logger.log('Done');
-  }
-
   async sendFeatureCollection(
-    featureCollection: FeatureCollection<Point, BackendGeoJsonProperties>,
+    featureCollection: FeatureCollection<
+      Point | Polygon,
+      BackendGeoJsonProperties
+    >,
   ) {
-    // return this.saveAsFile(featureCollection);
-
     let done = true;
     do {
       try {
