@@ -78,6 +78,8 @@ export class CloakingEngineService {
   }
 
   private msgPertEngine(msc: Message) {
+    if (this.constraintGraph.hasNode(unique(msc))) return;
+
     // if Qm != EMPTY
     // if (this.messagesQueue.length !== 0) {
     // Pop the first item in Qm
@@ -133,8 +135,6 @@ export class CloakingEngineService {
 
   private checkExpired() {
     if (!this.expirationHeap.top()) return;
-    const ii = this.i++;
-    this.logger.log(`${ii} - RUNNING`);
     while (true) {
       // ms <- Topmost item in Hm
       const expTime = this.expirationHeap.topKey();
