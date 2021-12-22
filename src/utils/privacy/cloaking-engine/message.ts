@@ -1,11 +1,6 @@
 import { BackendGeoJsonProperties } from 'src/dtos/backend-geojson-properties';
 import { MBR } from './mbr';
 
-type ResultHandlerFunction = (mt: {
-  mbr: MBR;
-  m: BackendGeoJsonProperties;
-}) => void;
-
 export class Message {
   uId: string;
   rNo: number;
@@ -17,7 +12,7 @@ export class Message {
   dx: number;
   dy: number;
   C: BackendGeoJsonProperties;
-  cb: ResultHandlerFunction;
+  cb: (mt: { mbr: MBR; m: BackendGeoJsonProperties }) => void;
   fail: () => void;
 }
 
@@ -36,7 +31,7 @@ export function makeMessage(
   dx: number,
   dy: number,
   C: BackendGeoJsonProperties,
-  cb: ResultHandlerFunction,
+  cb: (mt: { mbr: MBR; m: BackendGeoJsonProperties }) => void,
   fail: () => void,
 ): Message {
   return {

@@ -34,6 +34,7 @@ describe('CloakingEngineService', () => {
           {
             dummyLocation: false,
             gpsPerturbated: false,
+            cloaking: true,
             noiseLevel: 5,
             timeStamp: Date.now(),
           },
@@ -53,12 +54,13 @@ describe('CloakingEngineService', () => {
         1000,
         2000,
         3,
-        Infinity,
+        5000,
         5,
         5,
         {
           dummyLocation: false,
           gpsPerturbated: false,
+          cloaking: true,
           noiseLevel: 5,
           timeStamp: Date.now(),
         },
@@ -67,9 +69,7 @@ describe('CloakingEngineService', () => {
       ),
     );
 
-    expect(() => {
-      service.msgPertEngine();
-    }).not.toThrowError();
+    expect(() => {}).not.toThrowError();
   });
 
   it('should return an array of 3 MBRs', () => {
@@ -82,12 +82,13 @@ describe('CloakingEngineService', () => {
         1000,
         2000,
         3,
-        Infinity,
+        5000,
         5,
         5,
         {
           dummyLocation: false,
           gpsPerturbated: false,
+          cloaking: true,
           noiseLevel: 5,
           timeStamp: Date.now(),
         },
@@ -103,12 +104,13 @@ describe('CloakingEngineService', () => {
         6000,
         2000,
         3,
-        Infinity,
+        5000,
         5,
         5,
         {
           dummyLocation: false,
           gpsPerturbated: false,
+          cloaking: true,
           noiseLevel: 6,
           timeStamp: Date.now(),
         },
@@ -124,12 +126,13 @@ describe('CloakingEngineService', () => {
         1000,
         2000,
         3,
-        Infinity,
+        5000,
         5,
         5,
         {
           dummyLocation: false,
           gpsPerturbated: false,
+          cloaking: true,
           noiseLevel: 4,
           timeStamp: Date.now(),
         },
@@ -145,12 +148,13 @@ describe('CloakingEngineService', () => {
         1000,
         2000,
         3,
-        Infinity,
+        5000,
         5,
         5,
         {
           dummyLocation: false,
           gpsPerturbated: false,
+          cloaking: true,
           noiseLevel: 1,
           timeStamp: Date.now(),
         },
@@ -158,7 +162,7 @@ describe('CloakingEngineService', () => {
         () => {},
       ),
     );
-    service.msgPertEngine();
+
     expect(returned).toBe(3);
   });
 
@@ -172,12 +176,13 @@ describe('CloakingEngineService', () => {
         1000,
         2000,
         1,
-        Infinity,
+        5000,
         5,
         5,
         {
           dummyLocation: false,
           gpsPerturbated: false,
+          cloaking: true,
           noiseLevel: 5,
           timeStamp: Date.now(),
         },
@@ -185,7 +190,7 @@ describe('CloakingEngineService', () => {
         () => {},
       ),
     );
-    service.msgPertEngine();
+
     expect(returned).toBe(1);
   });
 
@@ -206,6 +211,7 @@ describe('CloakingEngineService', () => {
         {
           dummyLocation: false,
           gpsPerturbated: false,
+          cloaking: true,
           noiseLevel: 5,
           timeStamp: Date.now() - 2000,
         },
@@ -221,12 +227,13 @@ describe('CloakingEngineService', () => {
         1000,
         2000,
         2,
-        3,
+        3000,
         5,
         5,
         {
           dummyLocation: false,
           gpsPerturbated: false,
+          cloaking: true,
           noiseLevel: 5,
           timeStamp: Date.now(),
         },
@@ -234,7 +241,6 @@ describe('CloakingEngineService', () => {
         () => expired++,
       ),
     );
-    service.msgPertEngine();
 
     await waitFor(2000);
 
