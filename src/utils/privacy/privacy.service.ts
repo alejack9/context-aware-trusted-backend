@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Feature, FeatureCollection, Point, Polygon, Position } from 'geojson';
+import { Feature, FeatureCollection, Point, Polygon } from 'geojson';
 import { product } from 'cartesian-product-generator';
 import {
   BackendGeoJsonProperties,
@@ -11,14 +11,16 @@ import { randomInt, countDecimals, randomDouble, round } from 'src/utils/math';
 import { makeMessage } from './cloaking-engine/message';
 import { CloakingEngineService } from './cloaking-engine/cloaking-engine.service';
 import { MBR } from './cloaking-engine/mbr';
+import { HttpService } from '@nestjs/axios';
 
 @Injectable()
 export class PrivacyService {
   private logger = new Logger('CoordinatesService');
 
-  constructor(private engineService: CloakingEngineService) {
-    // this.engineService.start();
-  }
+  constructor(
+    private http: HttpService,
+    private engineService: CloakingEngineService,
+  ) {}
 
   /**
    * @param coords in EPSG:4326
@@ -66,9 +68,34 @@ export class PrivacyService {
 
   async fromAlpha(
     feature: Feature<Point, TrustedGeojsonProperties>,
-  ): Promise<Feature<Point, BackendGeoJsonProperties>[]> {
-    // TODO Alpha
-    throw new Error('fromAlpha not implemented.');
+  ): Promise<Feature<Point | Polygon, BackendGeoJsonProperties>[]> {
+    const res: {
+      dummyMin: number;
+      dummyCount: number;
+      dummyStep: number;
+      pertDecimals: number;
+    } = JSON.parse(
+      (
+        await this.http
+          .get(
+            `${process.env.ALPHA_ENDPOINT}?alpha=${feature.properties.alphaValue}&gpsPert=${feature.properties.gpsPerturbated}&dumUpd=${feature.properties.dummyLocation}`,
+          )
+          .toPromise()
+      ).data,
+    );
+    const toTransform: Feature<Point, TrustedGeojsonProperties> = {
+      geometry: feature.geometry,
+      type: 'Feature',
+      properties: feature.properties,
+    };
+
+    toTransform.properties.alpha = false;
+    toTransform.properties.dummyUpdatesCount = res.dummyCount;
+    toTransform.properties.dummyUpdatesRadiusMin = res.dummyMin;
+    toTransform.properties.dummyUpdatesRadiusStep = res.dummyStep;
+    toTransform.properties.perturbatorDecimals = res.pertDecimals;
+
+    return this.fromFeature(toTransform);
   }
 
   async fromFeature(
