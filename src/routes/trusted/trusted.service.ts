@@ -22,7 +22,7 @@ export class TrustedService {
       await this.http
         .get(
           `${
-            process.env.UNTRUSTED_BACKEND_ENDPOINT
+            process.env.UNTRUSTED_ENDPOINT
           }?lat=${lat}&long=${long}&${toQueryString(privacyOptions)}`,
         )
         .toPromise()
@@ -40,7 +40,7 @@ export class TrustedService {
       try {
         (
           await this.http
-            .post(process.env.UNTRUSTED_BACKEND_ENDPOINT, featureCollection)
+            .post(process.env.UNTRUSTED_ENDPOINT, featureCollection)
             .toPromise()
         ).data;
         done = true;

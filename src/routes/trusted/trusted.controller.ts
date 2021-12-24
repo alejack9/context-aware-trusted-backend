@@ -47,10 +47,9 @@ export class TrustedController {
   ) {
     await Promise.all(
       featColl.features.map(async (realFeature) => {
-        const toSend = await this.privacyService.fromFeature(realFeature);
         return this.trustedService.sendFeatureCollection({
           type: 'FeatureCollection',
-          features: toSend,
+          features: await this.privacyService.fromFeature(realFeature),
         });
       }),
     );
