@@ -95,7 +95,7 @@ export class CloakingEngineService {
     // Range search Im using Bcn(msc)
     const N = this.Im.search(Bcn);
 
-    // foreach ms ⊂ N, ms != msc
+    // foreach ms ∈ N, ms != msc
     // if L(msc) ⊂ Bcn(ms)
     for (const ms of N.filter((ms) => unique(ms.C) !== unique(msc)))
       if (within(this.Lm(msc), this.Bcn(ms.C)))
@@ -130,8 +130,6 @@ export class CloakingEngineService {
 
     // this.checkExpired();
   }
-
-  private i = 0;
 
   private checkExpired() {
     if (!this.expirationHeap.top()) return;

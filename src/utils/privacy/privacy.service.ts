@@ -28,7 +28,7 @@ export class PrivacyService {
    * @param diff_radius in meters
    * @returns
    */
-  private dummyPositionMetersMakerFromCoord(
+  private dummyPositionFromCoord(
     coords: number[],
     min_radius: number,
     diff_radius: number,
@@ -119,7 +119,7 @@ export class PrivacyService {
           realFeature.properties.perturbatorDecimals,
         );
       if (realFeature.properties.dummyLocation)
-        coords = this.dummyPositionMetersMakerFromCoord(
+        coords = this.dummyPositionFromCoord(
           coords,
           realFeature.properties.dummyUpdatesRadiusMin,
           realFeature.properties.dummyUpdatesRadiusStep,
@@ -158,9 +158,19 @@ export class PrivacyService {
         ),
       ];
 
+    return this.cloaking(
+      realFeature,
+      toRet as Feature<Point, BackendGeoJsonProperties>[],
+    );
+  }
+
+  async cloaking(
+    realFeature: Feature<Point, TrustedGeojsonProperties>,
+    messages: Feature<Point, BackendGeoJsonProperties>[],
+  ): Promise<Feature<Polygon, BackendGeoJsonProperties>[]> {
+    const toRet = [];
+
     return new Promise((res) => {
-      const messages = [...toRet] as Feature<Point, BackendGeoJsonProperties>[];
-      toRet.splice(0, toRet.length);
       let done = 0;
       const cbCalled = () => {
         if (++done === messages.length) res(toRet);
@@ -255,11 +265,7 @@ export class PrivacyService {
     ))
       toRet.features.push(
         createFeature(
-          this.dummyPositionMetersMakerFromCoord(
-            feature.geometry.coordinates,
-            min,
-            range,
-          ),
+          this.dummyPositionFromCoord(feature.geometry.coordinates, min, range),
           feature.properties.noiseLevel,
           feature.properties.timeStamp,
           {
@@ -282,7 +288,7 @@ export class PrivacyService {
       toRet.features.push(
         createFeature(
           this.perturbateCoords(
-            this.dummyPositionMetersMakerFromCoord(
+            this.dummyPositionFromCoord(
               feature.geometry.coordinates,
               min,
               range,
